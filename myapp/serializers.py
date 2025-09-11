@@ -66,12 +66,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             instance.profile_photo = profile_photo
 
         
-        cv = validated_data.get('cv')
-        if cv == "" or cv is None:
+        cv = validated_data.get('cv', None)
+        if cv and cv != "":
             if instance.cv:
                 instance.cv.delete(save=False)
-            instance.cv = None
-        else:
             instance.cv = cv
 
 
