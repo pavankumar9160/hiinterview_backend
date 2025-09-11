@@ -1,0 +1,402 @@
+from django.shortcuts import render
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import *
+from rest_framework.permissions import *
+from rest_framework.permissions import AllowAny
+from django.contrib.auth import authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .models import *
+
+import pyotp
+from django.core.mail import send_mail
+
+from .permissions import IsAdmin, IsMentor, IsCandidate
+
+
+
+
+
+# Create your views here.
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = RegisterSerializer
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            
+            user = User.objects.create_user(
+                email = request.data.get('email'),
+                password = request.data.get('password'),
+                fullname = request.data.get('fullname'),
+                mobile_number = request.data.get('mobile')
+                
+            )
+            
+            
+            alt_mobile = request.data.get('altMobile')
+            
+            if alt_mobile:
+                user.alt_mobile_number = alt_mobile
+                user.save()
+                
+                
+            cv = request.FILES.get('cv')
+            
+            if cv:
+                user.cv = request.FILES.get('cv')
+                user.save()
+                
+           
+            return Response({"success":True, "message": "User created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data.get('email')
+            password = serializer.validated_data.get('password')
+            
+            user = authenticate(username=email, password=password)
+            
+            if user is None:
+               return Response({"message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+            if not user.is_active:
+               return Response(
+                    {"message": "Your account is inactive. Please contact support."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            if  user.role=="Candidate" or user.role=="Admin":
+                refresh = RefreshToken.for_user(user)
+              
+                return Response({
+                    "success": True,
+                    "message": "User logged in successfully",
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                    "role": user.role,
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist() 
+            return Response({"success": True, "message": "Logged out successfully"}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+class UserProfileView(APIView):
+    permission_classes = [IsCandidate]    
+    serializer_class = UserProfileSerializer
+    
+    def get(self,request):
+        user = request.user
+        if user is None:
+            return Response({"error": "user not found"},status=status.HTTP_400_BAD_REQUEST)
+        serializer= self.serializer_class(user)
+        return Response(serializer.data)   
+    
+
+class EditUserProfileView(APIView):
+    permission_classes = [IsCandidate]
+    serializer_class = UserProfileSerializer
+    
+    def put(self,request):
+        user = request.user
+        
+        try:
+            profile = User.objects.get(email=user.email)
+        except User.DoesnotExist:
+            return Response({"error":"Profile not found"},status= status.HTTPS_404_NOT_FOUND)    
+        
+        serializer = self.serializer_class(profile,data=request.data,partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    
+
+
+class SendOTPView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        try:
+            email = request.data.get('email')
+            
+            if User.objects.filter(email=email,role='Candidate').first():
+                secret_key = pyotp.random_base32()
+                totp = pyotp.TOTP(secret_key, interval=300)
+                otp_value = totp.now()
+                print(otp_value)
+                cd
+                send_mail(
+                    subject='Email Verification Code from Hi Interview',
+                    message=(
+                        f'Dear User,\n\n'
+                        f'To verify your email address, please use the following One-Time Password (OTP):\n\n'
+                        f'{otp_value}\n\n'
+                        
+                        f'Otp Valid for 5 Minutes\n\n'
+                       
+                        f'If you did not request this verification, please ignore this email.\n\n'
+                        f'Thank you,\n'
+                        
+                    ),
+                    from_email='hiinterview@gmail.com',
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+
+                return Response({'message': 'OTP sent to email', "secret_key":secret_key}, status=status.HTTP_200_OK)
+            
+            return Response({'error': 'User not found with this email'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': 'Failed to send OTP email', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class TrainerSendOTPView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        try:
+            email = request.data.get('email')
+            
+            user = User.objects.filter(email=email, role='Mentor').first()
+            
+            if user:
+                secret_key = pyotp.random_base32()
+                totp = pyotp.TOTP(secret_key, interval=300)
+                otp_value = totp.now()
+                print(otp_value)
+                
+                send_mail(
+                    subject='Email Verification Code from Hi Interview',
+                    message=(
+                        f'Dear {user.fullname},\n\n'
+                        f'To verify your email address, please use the following One-Time Password (OTP):\n\n'
+                        f'{otp_value}\n\n'
+                        f'Otp Valid for 5 Minutes\n\n'
+                        f'If you did not request this verification, please ignore this email.\n\n'
+                        f'Thank you,\n'
+                    ),
+                    from_email='hiinterview@gmail.com',
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+
+                return Response(
+                    {'message': 'OTP sent to email', "secret_key": secret_key},
+                    status=status.HTTP_200_OK
+                )
+            
+            return Response(
+                {'error': 'Mentor not found with this email'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        except Exception as e:
+            return Response(
+                {'error': 'Failed to send OTP email', 'details': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+   
+            
+class VerifyOTPView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        
+        secret_key = request.data.get('secret_key')
+        otp_value = request.data.get('otpValue')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        print(otp_value)
+        
+        
+        print(secret_key)
+        
+        
+        if  not secret_key or not otp_value:
+            return Response({'message': 'Missing secret_key, or otpValue'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            veri_otp =pyotp.TOTP(secret_key,interval=300)
+            print(veri_otp)
+            
+            if not veri_otp.verify(otp_value, valid_window=1):
+                
+                return Response({'message':  'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not email or not password:
+                return Response({'message': 'Missing email or password'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try: 
+                user = User.objects.get(email=email)
+                user.set_password(password)
+                user.save()
+                return Response({'message': 'OTP verified & password updated successfully'}, status=status.HTTP_200_OK)
+
+            except User.DoesNotExists:
+                return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            return Response({"message": "OTP Verification failed",'error':str(e)},status = status.HTTP_400_BAD_REQUEST)
+        
+       
+    
+class TrainerRegisterView(APIView):
+    
+    permission_classes=[AllowAny]
+    serializer_class = TrainerRegisterSerializer
+    def post(self,request):
+        
+        serializer = self.serializer_class(data=request.data)
+        
+        if serializer.is_valid():
+            
+            user = User.objects.create_user(
+                email = request.data.get('email'),
+                password = request.data.get('password'),
+                first_name = request.data.get('first_name'),
+                last_name = request.data.get('last_name'),
+                mobile_number = request.data.get('mobile'),
+                dob = request.data.get('dob'),
+                gender = request.data.get('gender'),
+                marital_status = request.data.get('marital_status'),
+                domain = request.data.get('domain'),
+                experience = request.data.get('experience'),
+                profile_desc = request.data.get('profile_desc'),
+                training_time = request.data.get('training_time'),
+                buddy_days = request.data.get('buddy_days'), 
+                buddy_time = request.data.get('buddy_time'),
+                can_candidates_visit = request.data.get('can_candidates_visit'),
+                willing_to_visit = request.data.get('willing_to_visit'),
+                is_whatsapp_available = request.data.get('is_whatsapp_available'),         
+                role = "Mentor"
+                
+                
+            )
+            
+            
+            alt_mobile = request.data.get('alt_mobile')
+            
+            if alt_mobile:
+                user.alt_mobile_number = alt_mobile
+                user.save()
+                
+                
+            cv = request.FILES.get('cv')
+            
+            if cv:
+                user.cv = request.FILES.get('cv')
+                user.save()
+                
+           
+            return Response({"success":True, "message": "Trainer account created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+class TrainerLoginView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = TrainerLoginSerializer
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            email_or_mobile = serializer.validated_data.get('email_or_mobile')
+            password = serializer.validated_data.get('password')
+         
+            user = authenticate(username=email_or_mobile, password=password)
+            print("role",user.role)
+            if user is None:
+               return Response({"message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+            if not user.is_active:
+               return Response(
+                    {"message": "Your account is inactive. Please contact support."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+               
+               
+                
+            if user.role == "Mentor":
+                refresh = RefreshToken.for_user(user)
+              
+                return Response({
+                    "success": True,
+                    "message": "Trainer logged in successfully",
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)            
+            
+            
+
+class TrainerProfileView(APIView):
+    permission_classes = [IsMentor]   
+    serializer_class = TrainerProfileSerializer
+    
+    def get(self,request):
+        user = request.user
+        if user is None:
+            return Response({"error": "user not found"},status=status.HTTP_400_BAD_REQUEST)
+        serializer= self.serializer_class(user)
+        return Response(serializer.data)     
+    
+    
+
+class ShowAllUsersView(APIView):
+    permission_classes=[AllowAny]
+    serializer_class = AllUserProfileSerializer
+    
+    def get(self,request):
+        users = User.objects.all()
+        serializer = self.serializer_class(users,many=True)
+        return Response(serializer.data) 
+    
+    
+class UpdateUserStatusView(APIView):
+    
+    permission_classes = [AllowAny]
+    serializer_class = UpdateUserStatusSerializer
+    def put(self,request,id):
+        user = User.objects.get(id=id)
+        
+        serializer = self.serializer_class(user,data=request.data,partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message":"User Status Updated Successfully"}, status= status.HTTP_200_OK)
+        return Response(serializer.errors, status= status.HTTP_200_OK) 
+    
+        
+            
+                   
+                
+       
+       
+        
+        
+
+    
