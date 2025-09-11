@@ -38,6 +38,10 @@ AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
 
 
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
+
+
 
 
 
@@ -166,11 +170,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # MEDIA_URL = '/media/'
 # MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-AWS_DEFAULT_ACL = None  # recommended
-AWS_QUERYSTRING_AUTH = False  # public URLs
 
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
