@@ -38,13 +38,26 @@ class LoginSerializer(serializers.ModelSerializer):
         model = User
         fields = ('email', 'password')
         
+        
+class UserSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSubscription
+        fields="__all__"  
+           
+class UserSessionHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionHistory
+        fields="__all__"  
+        
+                
 class UserProfileSerializer(serializers.ModelSerializer):
     cv_url = serializers.SerializerMethodField()
     profile_photo_url = serializers.SerializerMethodField()
-    
+    subscription = UserSubscriptionSerializer(read_only = True)
+    session_history = UserSessionHistorySerializer(many=True, read_only=True, source="sessions")
     class Meta:
         model = User
-        fields = ['fullname','email','cv','mobile_number','alt_mobile_number','profile_photo','profile_photo_url','cv_url','role']
+        fields = ['fullname','email','cv','mobile_number','alt_mobile_number','profile_photo','profile_photo_url','cv_url','role','paid_customer','subscription','session_history']
 
     def get_profile_photo_url(self, obj):
         if obj.profile_photo:
@@ -148,10 +161,197 @@ class UpdateUserStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model=User
         fields=['id','is_active']    
-             
+
+
+class GetCandidateAssignmentSerializer(serializers.ModelSerializer):
+    
+    trainer_id = serializers.SerializerMethodField()
+    buddy_id = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = ['id','first_name','last_name','fullname','email'
+                  ,'domain','role','is_active','joined_date', 'buddy_id','trainer_id']       
+    
+    def get_trainer_id(self, obj):
+        assignment = obj.assignments.last()  
+        return assignment.trainer.id if assignment and assignment.trainer else None
+
+    def get_buddy_id(self, obj):
+        assignment = obj.assignments.last()
+        return assignment.buddy.id if assignment and assignment.buddy else None         
     
       
+class UpdateCandidateAssignmentSerializer(serializers.ModelSerializer):
     
+    class Meta:
+        
+        model = CandidateAssignment
+        fields = "__all__"
+        
+    
+
+# from collections import defaultdict
+
+# class ConversationSerializer:
+#     def __init__(self, messages, current_user):
+#         self.messages = messages
+#         self.current_user = current_user
+
+#     def to_dict(self):
+#         conversations = defaultdict(lambda: {
+#             "id": None,
+#             "name": None,
+#             "type": None,
+#             "avatarUrl": None,
+#             "unread": 0,
+#             "lastMessage": None,
+#             "messages": []
+#         })
+
+#         for msg in self.messages:
+#             other = msg.receiver if msg.sender == self.current_user else msg.sender
+#             conv_id = other.fullname.lower().replace(" ", "-")
+
+#             # figure out display name
+#             if hasattr(other, "first_name") and other.first_name:  
+#                 # trainer / mentor / buddy
+#                 display_name = f"{other.first_name} {getattr(other, 'last_name', '')}".strip()
+#                 initials = f"{other.first_name[0].upper()}{getattr(other, 'last_name', ' ')[0].upper()}"
+#             else:
+#                 # candidate
+#                 display_name = other.fullname
+#                 parts = other.fullname.split()
+#                 initials = "".join([p[0].upper() for p in parts[:2]])  # take first 2 letters
+
+#             # Init conversation if first time
+#             if not conversations[conv_id]["id"]:
+#                 conversations[conv_id]["id"] = conv_id
+#                 conversations[conv_id]["name"] = display_name
+#                 conversations[conv_id]["type"] = self.get_chat_type(other)
+#                 conversations[conv_id]["avatarUrl"] = (
+#                     f"https://placehold.co/100x100/1e293b/e2e8f0?text={initials}"
+#                 )
+
+#             conversations[conv_id]["messages"].append({
+#                 "from": "me" if msg.sender == self.current_user else "them",
+#                 "text": msg.text,
+#                 "time": msg.timestamp.strftime("%Y-%m-%d %H:%M")
+#             })
+
+#             # Update last message
+#             conversations[conv_id]["lastMessage"] = msg.text
+
+#             # Update unread count
+#             if msg.receiver == self.current_user and not msg.is_read:
+#                 conversations[conv_id]["unread"] += 1
+
+#         return conversations
+
+#     def get_chat_type(self, user):
+#         if user.role == "Candidate":
+#             return "candidate_chat"
+#         elif user.role == "Mentor":
+#             return "trainer_chat"
+#         else:
+#             return "other"
+
+
+# from collections import OrderedDict
+# from django.db.models import Q
+
+
+
+# class CandidateChatSerializer:
+#     def __init__(self, candidate):
+#         self.candidate = candidate
+
+#     def get_messages(self, user):
+#         """
+#         Fetch messages between the candidate and another user,
+#         format sender as 'me' if candidate sent, else the sender's role.
+#         """
+#         msgs = Message.objects.filter(
+#             Q(sender=self.candidate, receiver=user) | Q(sender=user, receiver=self.candidate)
+#         ).order_by("timestamp")
+
+#         formatted = []
+#         for m in msgs:
+#             if m.sender == self.candidate:
+#                 sender_role = "me"
+#             else:
+#                 sender_role = m.sender.role  # Keep exact case: Admin, Mentor, Candidate
+
+#             formatted.append({
+#                 "sender": sender_role,
+#                 "text": m.text,
+#                 "time": m.timestamp.strftime("%Y-%m-%d %H:%M")
+#             })
+
+#         return formatted
+
+#     def get_avatar(self, user):
+#         """Generate avatar placeholder URL with initials."""
+#         if user.role == "Mentor":
+#             initials = f"{user.first_name[0].upper()}{getattr(user, 'last_name', ' ')[0].upper()}"
+#         else:  # Admin or Candidate
+#             parts = user.fullname.split()
+#             initials = "".join([p[0].upper() for p in parts[:2]])
+#         return f"https://placehold.co/100x100/1e293b/e2e8f0?text={initials}"
+
+#     def get_display_name(self, user):
+#         """Display name based on role."""
+#         if user.role == "Mentor":
+#             display_name = f"{user.first_name} {getattr(user, 'last_name', '')}".strip()
+#             display_name += " (Your Mentor)"
+#         elif user.role == "Admin":
+#             display_name = "Admin Support"
+#         else:  # Candidate
+#             display_name = user.fullname
+#         return display_name
+
+#     def to_dict(self):
+#         chat_dict = OrderedDict()
+
+#         # Admin chat
+#         admin_user = User.objects.filter(role="Admin").first()
+#         if admin_user:
+#             chat_dict["admin-support"] = {
+#                 "name": self.get_display_name(admin_user),
+#                 "avatarUrl": self.get_avatar(admin_user),
+#                 "unread": Message.objects.filter(sender=admin_user, receiver=self.candidate, is_read=False).count(),
+#                 "type": "admin",
+#                 "messages": self.get_messages(admin_user)
+#             }
+
+#         # Candidate's assigned Mentor
+#         assignment = CandidateAssignment.objects.filter(candidate=self.candidate).first()
+#         if assignment and assignment.trainer:
+#             trainer = assignment.trainer
+#             chat_dict[f"mentor-{trainer.id}"] = {
+#                 "name": self.get_display_name(trainer),
+#                 "avatarUrl": self.get_avatar(trainer),
+#                 "unread": Message.objects.filter(sender=trainer, receiver=self.candidate, is_read=False).count(),
+#                 "type": "normal",
+#                 "messages": self.get_messages(trainer)
+#             }
+
+#         # Candidate's assigned Buddy
+#         if assignment and assignment.buddy:
+#             buddy = assignment.buddy
+#             chat_dict[f"request-{buddy.id}"] = {
+#                 "name": f"Buddy Day Request: {buddy.fullname}",
+#                 "avatarUrl": self.get_avatar(buddy),
+#                 "unread": Message.objects.filter(sender=buddy, receiver=self.candidate, is_read=False).count(),
+#                 "type": "request",
+#                 "status": "Accepted",  # dynamic if needed
+#                 "details": "TCS - Technical Round (Java)",  # dynamic if needed
+#                 "messages": self.get_messages(buddy)
+#             }
+
+#         return chat_dict
+
+        
     
         
    

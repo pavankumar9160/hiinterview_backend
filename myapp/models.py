@@ -89,6 +89,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     joined_date = models.DateTimeField(auto_now_add=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Candidate')
+    paid_customer = models.BooleanField(default=False)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
     objects = customUserManager()
@@ -102,3 +104,64 @@ class UserUploadedFiles(models.Model):
     file = models.FileField(upload_to='user_files/')
     def __str__(self):
         return self.file.name
+    
+ 
+
+
+class CandidateAssignment(models.Model):
+    candidate = models.ForeignKey(User, on_delete=models.CASCADE, related_name="assignments", limit_choices_to={'role': 'Candidate'})
+    trainer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="trainer_assignments", limit_choices_to={'role': 'Mentor'})
+    buddy = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="buddy_assignments", limit_choices_to={'role': 'Mentor'})
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Assignment for {self.candidate.fullname}"
+
+
+# class Message(models.Model):
+#     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
+#     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_messages")
+#     text = models.TextField()
+#     timestamp = models.DateTimeField(auto_now_add=True)
+#     is_read = models.BooleanField(default=False)
+
+
+
+class UserSubscription(models.Model):
+    SUBSCRIPTION_CHOICES = [
+        ("Silver", "Silver"),
+        ("Bronze", "Bronze"),
+        ("Gold", "Gold"),
+        ("Diamond", "Diamond"),
+        ("Custom", "Custom"),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="subscription")
+    subscription_name = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default="Bronze")
+    one_to_one_training = models.BooleanField(default=False)
+    weeks_completed = models.PositiveIntegerField(default=0)  
+    one_to_one_progress = models.PositiveIntegerField(default=0)
+    interview_buddy_coins_remaining = models.PositiveIntegerField(default=0)
+    interview_buddy_coins_used = models.PositiveIntegerField(default=0)
+    interview_buddy_slots_remaining = models.PositiveIntegerField(default=0)
+    special_customer = models.BooleanField(default=False)
+    extra_features = models.BooleanField(default=False)
+
+    
+
+
+class SessionHistory(models.Model):
+    STATUS_CHOICES = [
+        ("Completed", "Completed"),
+        ("Pending", "Pending"),
+        ("Requested", "Requested"),
+        ("Cancelled", "Cancelled"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sessions")
+    company_name = models.CharField(max_length=255)
+    session_date = models.DateTimeField()
+    completed_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+
+    
+    

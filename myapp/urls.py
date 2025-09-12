@@ -23,6 +23,14 @@ urlpatterns = [
     path('api/update/user-profile/',EditUserProfileView.as_view(),name ="update-userprofile"),
     path('api/users/',ShowAllUsersView.as_view(),name='users-data'),
     path('api/update-user-status/<int:id>/',UpdateUserStatusView.as_view(),name='update-user-status'),
+    path('api/admin/candidate-assignments/',GetCandidateAssignemtView.as_view(),name='candidate-assignments'),
+    path('api/admin/update-candidate-assignments/',UpdateCandidateAssignment.as_view(),name='update-candidate-assignments'),
+    path('api/update-user-payment-status/',UpdatePaymentAndSubscriptionView.as_view(),name='update-candidate-payment-status'),
+    
+    # path('api/admin/chat-conversation/',ConversationView.as_view(),name='admin-chat-conversation'),
+    # path('api/user/candidate-chat/',CandidateChatView.as_view(),name='candidate-chat')
+
+
 
 
 

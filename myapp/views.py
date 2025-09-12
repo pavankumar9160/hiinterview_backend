@@ -191,7 +191,7 @@ class TrainerSendOTPView(APIView):
                 send_mail(
                     subject='Email Verification Code from Hi Interview',
                     message=(
-                        f'Dear {user.fullname},\n\n'
+                        f'Dear User,\n\n'
                         f'To verify your email address, please use the following One-Time Password (OTP):\n\n'
                         f'{otp_value}\n\n'
                         f'Otp Valid for 5 Minutes\n\n'
@@ -326,7 +326,7 @@ class TrainerLoginView(APIView):
             password = serializer.validated_data.get('password')
          
             user = authenticate(username=email_or_mobile, password=password)
-            print("role",user.role)
+          
             if user is None:
                return Response({"message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -336,8 +336,6 @@ class TrainerLoginView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
                
-               
-                
             if user.role == "Mentor":
                 refresh = RefreshToken.for_user(user)
               
@@ -367,7 +365,7 @@ class TrainerProfileView(APIView):
     
 
 class ShowAllUsersView(APIView):
-    permission_classes=[AllowAny]
+    permission_classes=[IsAdmin]
     serializer_class = AllUserProfileSerializer
     
     def get(self,request):
@@ -378,7 +376,7 @@ class ShowAllUsersView(APIView):
     
 class UpdateUserStatusView(APIView):
     
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdmin]
     serializer_class = UpdateUserStatusSerializer
     def put(self,request,id):
         user = User.objects.get(id=id)
@@ -390,9 +388,107 @@ class UpdateUserStatusView(APIView):
             return Response({"message":"User Status Updated Successfully"}, status= status.HTTP_200_OK)
         return Response(serializer.errors, status= status.HTTP_200_OK) 
     
-        
+
+class GetCandidateAssignemtView(APIView):
+    permission_classes=[IsAdmin]
+    serializer_class = GetCandidateAssignmentSerializer
+    
+    def get(self,request):
+        users = User.objects.all()
+        serializer = self.serializer_class(users,many=True)
+        return Response(serializer.data)         
             
-                   
+
+class UpdateCandidateAssignment(APIView):
+    
+    permission_classes = [IsAdmin]
+    serializer_class = UpdateCandidateAssignmentSerializer
+    
+    def post(self, request):
+        candidate_id = request.data.get("candidate")
+        trainer_id = request.data.get("trainer")
+        buddy_id = request.data.get("buddy")
+
+        if not candidate_id:
+            return Response({"error": "Candidate ID is required"}, status=400)
+
+        assignment = CandidateAssignment.objects.filter(candidate_id=candidate_id).first()
+
+        if assignment:
+            serializer = UpdateCandidateAssignmentSerializer(assignment, data=request.data, partial=True)
+        else:
+            serializer = UpdateCandidateAssignmentSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
+        return Response(serializer.errors, status=400)
+        
+        
+
+# class ConversationView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         messages = Message.objects.filter(
+#             Q(sender=request.user) | Q(receiver=request.user)
+#         ).select_related("sender", "receiver").order_by("timestamp")
+
+#         serializer = ConversationSerializer(messages, current_user=request.user)
+#         return Response(serializer.to_dict(), status=200)
+    
+
+# class CandidateChatView(APIView):
+#     permission_classes = [IsCandidate]
+
+#     def get(self, request):
+#         if request.user.role != "Candidate":
+#             return Response({"error": "Only candidates can access this"}, status=403)
+
+#         serializer = CandidateChatSerializer(request.user)
+#         return Response(serializer.to_dict(), status=200)    
+        
+        
+ 
+# views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from .models import User, UserSubscription
+
+class UpdatePaymentAndSubscriptionView(APIView):
+    permission_classes = [IsCandidate]  
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+
+        paid_customer = data.get("paid_candidate")
+        subscription_name = data.get("subscription_name")
+
+        if paid_customer is None or subscription_name is None:
+            return Response(
+                {"message": "paid_candidate and subscription_name are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.paid_customer = bool(paid_customer)
+        user.save()
+
+        subscription, created = UserSubscription.objects.get_or_create(user=user)
+        subscription.subscription_name = subscription_name
+        subscription.save()
+
+        return Response({
+            "message": "Payment status and subscription updated successfully.",
+            "paid_customer": user.paid_customer,
+            "subscription_name": subscription.subscription_name
+        }, status=status.HTTP_200_OK)
+      
+    
+                       
                 
        
        
