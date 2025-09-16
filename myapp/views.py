@@ -450,13 +450,40 @@ class UpdateCandidateAssignment(APIView):
         
         
  
-# views.py
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
+
 from django.shortcuts import get_object_or_404
-from .models import User, UserSubscription
+
+
+# class UpdatePaymentAndSubscriptionView(APIView):
+#     permission_classes = [IsCandidate]  
+
+#     def post(self, request):
+#         user = request.user
+#         data = request.data
+
+#         paid_customer = data.get("paid_candidate")
+#         subscription_name = data.get("subscription_name")
+
+#         if paid_customer is None or subscription_name is None:
+#             return Response(
+#                 {"message": "paid_candidate and subscription_name are required."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         user.paid_customer = bool(paid_customer)
+#         user.save()
+
+#         subscription, created = UserSubscription.objects.get_or_create(user=user)
+#         subscription.subscription_name = subscription_name
+#         subscription.save()
+
+#         return Response({
+#             "message": "Payment status and subscription updated successfully.",
+#             "paid_customer": user.paid_customer,
+#             "subscription_name": subscription.subscription_name
+#         }, status=status.HTTP_200_OK)
+      
+      
 
 class UpdatePaymentAndSubscriptionView(APIView):
     permission_classes = [IsCandidate]  
@@ -466,27 +493,42 @@ class UpdatePaymentAndSubscriptionView(APIView):
         data = request.data
 
         paid_customer = data.get("paid_candidate")
-        subscription_name = data.get("subscription_name")
-
-        if paid_customer is None or subscription_name is None:
+        subscriptions = request.data.get("subscriptions", [])
+        
+        if paid_customer is None or subscriptions is None  :
             return Response(
-                {"message": "paid_candidate and subscription_name are required."},
+                {"message": "paid_candidate or subscription_name or subscription_domain or subscription_price are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         user.paid_customer = bool(paid_customer)
         user.save()
 
-        subscription, created = UserSubscription.objects.get_or_create(user=user)
-        subscription.subscription_name = subscription_name
-        subscription.save()
+        
+        for sub in subscriptions:
+            UserSubscription.objects.create(
+                user=user,
+                subscription_name=sub["name"],
+                subscription_price=sub["price"],
+                subscription_domain=sub.get("domain", "")
+            )
 
         return Response({
             "message": "Payment status and subscription updated successfully.",
             "paid_customer": user.paid_customer,
-            "subscription_name": subscription.subscription_name
         }, status=status.HTTP_200_OK)
-      
+        
+        
+
+
+class WebsiteStatusView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request):
+        status_obj = WebsiteStatus.objects.first()
+        return Response({
+            "is_active": status_obj.is_active if status_obj else True
+        }, status=status.HTTP_200_OK)        
+            
     
                        
                 

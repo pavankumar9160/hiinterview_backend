@@ -26,7 +26,7 @@ urlpatterns = [
     path('api/admin/candidate-assignments/',GetCandidateAssignemtView.as_view(),name='candidate-assignments'),
     path('api/admin/update-candidate-assignments/',UpdateCandidateAssignment.as_view(),name='update-candidate-assignments'),
     path('api/update-user-payment-status/',UpdatePaymentAndSubscriptionView.as_view(),name='update-candidate-payment-status'),
-    
+     path("api/website-status/", WebsiteStatusView.as_view(), name="website-status"),
     # path('api/admin/chat-conversation/',ConversationView.as_view(),name='admin-chat-conversation'),
     # path('api/user/candidate-chat/',CandidateChatView.as_view(),name='candidate-chat')
 

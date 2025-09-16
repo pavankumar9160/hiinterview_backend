@@ -53,7 +53,7 @@ class UserSessionHistorySerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     cv_url = serializers.SerializerMethodField()
     profile_photo_url = serializers.SerializerMethodField()
-    subscription = UserSubscriptionSerializer(read_only = True)
+    subscription = UserSubscriptionSerializer(read_only = True,many=True)
     session_history = UserSessionHistorySerializer(many=True, read_only=True, source="sessions")
     class Meta:
         model = User

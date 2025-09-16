@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, UserUploadedFiles, CandidateAssignment, UserSubscription, SessionHistory
+from .models import *
 
 
 @admin.register(User)
@@ -41,3 +41,15 @@ class SessionHistoryAdmin(admin.ModelAdmin):
     list_display = ("user", "company_name", "session_date", "completed_status")
     list_filter = ("completed_status", "session_date")
     search_fields = ("user__email", "company_name")
+    
+    
+@admin.register(WebsiteStatus)    
+class WebsiteStatusAdmin(admin.ModelAdmin):
+    list_display = ("website_status","is_active", "updated_at")
+    readonly_fields = ("website_status",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

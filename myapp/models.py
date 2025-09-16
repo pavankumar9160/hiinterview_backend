@@ -1,7 +1,17 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
-# Create your models here.
+
+
+
+class WebsiteStatus(models.Model):
+    website_status = models.CharField( max_length=50, default="toggle_website_status")
+    is_active = models.BooleanField(default=True)  
+    updated_at = models.DateTimeField(auto_now=True)
+
+    
+
+
 class customUserManager(BaseUserManager):     
         def create_user(self, email, password=None, **extra_fields):
             if not email:
@@ -136,8 +146,11 @@ class UserSubscription(models.Model):
         ("Custom", "Custom"),
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="subscription")
-    subscription_name = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default="Bronze")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscription")
+    subscription_type = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default="Bronze")
+    subscription_name =  models.CharField(max_length=200,blank=True,null=True)
+    subscription_domain =  models.CharField(max_length=200,blank=True,null=True)
+    subscription_price=  models.CharField(max_length=200,blank=True,null=True)
     one_to_one_training = models.BooleanField(default=False)
     weeks_completed = models.PositiveIntegerField(default=0)  
     one_to_one_progress = models.PositiveIntegerField(default=0)
