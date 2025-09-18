@@ -145,12 +145,22 @@ class UserSubscription(models.Model):
         ("Diamond", "Diamond"),
         ("Custom", "Custom"),
     ]
+    
+    SUBSCRIPTION_STATUS = [
+        ("Pending", "Pending"),
+        ("Delivered", "Delivered"),
+        ("Refunded", "Refunded"),
+        ("Cancelled", "Cancelled"),
+        
+    ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscription")
     subscription_type = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default="Bronze")
     subscription_name =  models.CharField(max_length=200,blank=True,null=True)
     subscription_domain =  models.CharField(max_length=200,blank=True,null=True)
     subscription_price=  models.CharField(max_length=200,blank=True,null=True)
+    status = models.CharField(max_length=20, choices=SUBSCRIPTION_STATUS, default="Pending")
+    date = models.DateTimeField(auto_now_add=True)
     one_to_one_training = models.BooleanField(default=False)
     weeks_completed = models.PositiveIntegerField(default=0)  
     one_to_one_progress = models.PositiveIntegerField(default=0)
@@ -175,6 +185,36 @@ class SessionHistory(models.Model):
     company_name = models.CharField(max_length=255)
     session_date = models.DateTimeField()
     completed_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+    
+    
+class Ticket(models.Model):
+    TICKET_STATUS_CHOICES = [
+        ('Open', 'Open'),
+        ('Closed', 'Closed'),
+        ('Pending', 'Pending'),
+        ('Resolved', 'Resolved'),
+    ]
+
+    ticket_id = models.CharField(max_length=20, unique=True)
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    related_OrderId = models.ForeignKey( UserSubscription,on_delete=models.SET_NULL,null=True,blank=True,related_name="tickets")
+    status = models.CharField(max_length=20, choices=TICKET_STATUS_CHOICES, default='Open')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tickets')
+
+    def __str__(self):
+        return f"{self.ticket_id} - {self.subject}"
+    
+
+
+class TicketResponse(models.Model):
+    
+    ticket = models.ForeignKey('Ticket',on_delete=models.CASCADE,related_name='responses')
+    by = models.CharField(max_length=255) 
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)    
+
 
     
     

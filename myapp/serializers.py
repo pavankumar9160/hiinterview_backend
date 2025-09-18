@@ -43,21 +43,36 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSubscription
         fields="__all__"  
+
+
+class TicketResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TicketResponse
+        fields = ['by', 'text', 'created_at']
+        
            
 class UserSessionHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = SessionHistory
         fields="__all__"  
         
-                
+
+class TicketSerializer(serializers.ModelSerializer):
+    responses = TicketResponseSerializer(many=True, read_only=True)
+    class Meta:
+        model = Ticket
+        fields = ['ticket_id', 'subject', 'message', 'related_OrderId',
+                  'status', 'created_at', 'responses']
+                        
 class UserProfileSerializer(serializers.ModelSerializer):
     cv_url = serializers.SerializerMethodField()
     profile_photo_url = serializers.SerializerMethodField()
+    tickets  = TicketSerializer(many=True, read_only=True)
     subscription = UserSubscriptionSerializer(read_only = True,many=True)
     session_history = UserSessionHistorySerializer(many=True, read_only=True, source="sessions")
     class Meta:
         model = User
-        fields = ['fullname','email','cv','mobile_number','alt_mobile_number','profile_photo','profile_photo_url','cv_url','role','paid_customer','subscription','session_history']
+        fields = ['fullname','email','cv','mobile_number','alt_mobile_number','profile_photo','profile_photo_url','cv_url','role','paid_customer','subscription','tickets','session_history']
 
     def get_profile_photo_url(self, obj):
         if obj.profile_photo:
@@ -189,7 +204,8 @@ class UpdateCandidateAssignmentSerializer(serializers.ModelSerializer):
         model = CandidateAssignment
         fields = "__all__"
         
-    
+
+
 
 # from collections import defaultdict
 

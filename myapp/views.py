@@ -106,9 +106,15 @@ class UserProfileView(APIView):
     serializer_class = UserProfileSerializer
     
     def get(self,request):
-        user = request.user
-        if user is None:
+        user_details = request.user
+        if user_details is None:
             return Response({"error": "user not found"},status=status.HTTP_400_BAD_REQUEST)
+        
+        user = (
+            User.objects
+            .prefetch_related('tickets__responses','subscription','sessions')
+            .get(id=request.user.id)
+        )
         serializer= self.serializer_class(user)
         return Response(serializer.data)   
     
@@ -530,7 +536,39 @@ class WebsiteStatusView(APIView):
         }, status=status.HTTP_200_OK)        
             
     
-                       
+
+class TicketCreateView(APIView):
+    permission_classes = [IsCandidate]
+
+    def post(self, request):
+        data = request.data
+
+        related_orderId = request.data.get("related_orderId")
+        subject = request.data.get("subject")
+        message = request.data.get("message")
+        ticket_status =request.data.get("status","Open")
+        created_by = request.user
+        last_id = Ticket.objects.count() + 1
+        ticket_id = f"TCK-{9000 + last_id}"
+        subscription = None
+        if related_orderId:
+            try:
+                subscription = UserSubscription.objects.get(id=related_orderId)
+            except UserSubscription.DoesNotExist:
+                return Response(
+                    {"error": "Invalid subscription ID"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        Ticket.objects.create(
+            ticket_id = ticket_id,
+            subject=subject,
+            status = ticket_status,
+            created_by=created_by,
+            message = message,
+            related_OrderId = subscription 
+        )    
+        return Response({"success":True, "message": "Trainer account created successfully"}, status=status.HTTP_201_CREATED)
+                              
                 
        
        
