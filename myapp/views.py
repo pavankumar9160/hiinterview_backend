@@ -569,7 +569,47 @@ class TicketCreateView(APIView):
         )    
         return Response({"success":True, "message": "Trainer account created successfully"}, status=status.HTTP_201_CREATED)
                               
-                
+
+
+class GetAllTicketsView(APIView):
+    
+    permission_classes = [IsAdmin]
+    serializer_class = AllTicketsSerializer
+    
+    def get(self,request):   
+         
+        tickets = Ticket.objects.select_related('related_OrderId', 'created_by').all();
+        serializer = self.serializer_class(tickets,many=True)
+        return Response(serializer.data)
+        
+ 
+class UpdateTicketStatusView(APIView):      
+     
+    permission_classes = [IsAdmin]
+    serializer_class = UpdateTicketStatusSerializer
+    
+    def post(self, request):
+        status = request.data.get("status")
+        ticket_id = request.data.get("ticketId")
+        
+        if not status and not ticket_id:
+            return Response({"error": "Ticket Update Status Failed"}, status=400)
+
+        ticket = Ticket.objects.filter(ticket_id=ticket_id).first()
+
+        if ticket:
+            serializer = UpdateTicketStatusSerializer(ticket, data=request.data, partial=True)
+        else:
+            serializer = UpdateTicketStatusSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
+        return Response(serializer.errors, status=400) 
+        
+        
+        
+                  
        
        
         

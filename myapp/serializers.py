@@ -203,8 +203,29 @@ class UpdateCandidateAssignmentSerializer(serializers.ModelSerializer):
         
         model = CandidateAssignment
         fields = "__all__"
-        
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        
+        model =  User
+        fields="__all__"
+                
+
+class AllTicketsSerializer(serializers.ModelSerializer):
+    responses = TicketResponseSerializer(many=True, read_only=True)
+    related_OrderId = UserSubscriptionSerializer(read_only = True)
+    created_by = UserSerializer(read_only =True)
+    class Meta:
+        model = Ticket
+        fields = ['ticket_id', 'subject', 'message', 'related_OrderId',
+                  'status', 'created_at', 'responses','created_by']
+        
+        
+class UpdateTicketStatusSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model=Ticket
+        fields=['ticket_id','status']         
 
 
 # from collections import defaultdict
