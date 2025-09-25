@@ -27,9 +27,17 @@ urlpatterns = [
     path('api/admin/update-candidate-assignments/',UpdateCandidateAssignment.as_view(),name='update-candidate-assignments'),
     path('api/update-user-payment-status/',UpdatePaymentAndSubscriptionView.as_view(),name='update-candidate-payment-status'),
     path("api/website-status/", WebsiteStatusView.as_view(), name="website-status"),
+    # path("api/tickets/create/", TicketCreateView.as_view(), name="ticket-create"),
+    # path('api/tickets/',GetAllTicketsView.as_view(), name="tickets"),
+    # path('api/update-ticket-status/',UpdateTicketStatusView.as_view(), name="update-ticket-status"),
+    path("tickets/", AllTicketsListView.as_view(), name="ticket-list"),
     path("api/tickets/create/", TicketCreateView.as_view(), name="ticket-create"),
-    path('api/tickets/',GetAllTicketsView.as_view(), name="tickets"),
-    path('api/update-ticket-status/',UpdateTicketStatusView.as_view(), name="update-ticket-status"),
+    path("tickets/<int:pk>/", TicketDetailView.as_view(), name="ticket-detail"),
+    path("messages/create/", MessageCreateView.as_view(), name="message-create"),
+    path("tickets/update-status/", UpdateTicketStatusView.as_view(), name="update-status"),
+
+
+
      
           
           

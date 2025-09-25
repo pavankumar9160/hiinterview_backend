@@ -112,7 +112,7 @@ class UserProfileView(APIView):
         
         user = (
             User.objects
-            .prefetch_related('tickets__responses','subscription','sessions')
+            .prefetch_related('tickets','sent_messages','subscription','sessions')
             .get(id=request.user.id)
         )
         serializer= self.serializer_class(user)
@@ -537,79 +537,179 @@ class WebsiteStatusView(APIView):
             
     
 
+# class TicketCreateView(APIView):
+#     permission_classes = [IsCandidate]
+
+#     def post(self, request):
+#         data = request.data
+
+#         related_orderId = request.data.get("related_orderId")
+#         subject = request.data.get("subject")
+#         message = request.data.get("message")
+#         ticket_status =request.data.get("status","Open")
+#         created_by = request.user
+#         last_id = Ticket.objects.count() + 1
+#         ticket_id = f"TCK-{9000 + last_id}"
+#         subscription = None
+#         if related_orderId:
+#             try:
+#                 subscription = UserSubscription.objects.get(id=related_orderId)
+#             except UserSubscription.DoesNotExist:
+#                 return Response(
+#                     {"error": "Invalid subscription ID"},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+#         Ticket.objects.create(
+#             ticket_id = ticket_id,
+#             subject=subject,
+#             status = ticket_status,
+#             created_by=created_by,
+#             message = message,
+#             related_OrderId = subscription 
+#         )    
+#         return Response({"success":True, "message": "Trainer account created successfully"}, status=status.HTTP_201_CREATED)
+                              
+
+
+# class GetAllTicketsView(APIView):
+    
+#     permission_classes = [IsAdmin]
+#     serializer_class = AllTicketsSerializer
+    
+#     def get(self,request):   
+         
+#         tickets = Ticket.objects.select_related('related_OrderId', 'created_by').all();
+#         serializer = self.serializer_class(tickets,many=True)
+#         return Response(serializer.data)
+        
+ 
+# class UpdateTicketStatusView(APIView):      
+     
+#     permission_classes = [IsAdmin]
+#     serializer_class = UpdateTicketStatusSerializer
+    
+#     def post(self, request):
+#         status = request.data.get("status")
+#         ticket_id = request.data.get("ticketId")
+        
+#         if not status and not ticket_id:
+#             return Response({"error": "Ticket Update Status Failed"}, status=400)
+
+#         ticket = Ticket.objects.filter(ticket_id=ticket_id).first()
+
+#         if ticket:
+#             serializer = UpdateTicketStatusSerializer(ticket, data=request.data, partial=True)
+#         else:
+#             serializer = UpdateTicketStatusSerializer(data=request.data)
+
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=200)
+#         return Response(serializer.errors, status=400) 
+        
+
+
+
+
+# Create Ticket
 class TicketCreateView(APIView):
     permission_classes = [IsCandidate]
 
     def post(self, request):
+        user = request.user
         data = request.data
 
-        related_orderId = request.data.get("related_orderId")
-        subject = request.data.get("subject")
-        message = request.data.get("message")
-        ticket_status =request.data.get("status","Open")
-        created_by = request.user
-        last_id = Ticket.objects.count() + 1
-        ticket_id = f"TCK-{9000 + last_id}"
-        subscription = None
-        if related_orderId:
-            try:
-                subscription = UserSubscription.objects.get(id=related_orderId)
-            except UserSubscription.DoesNotExist:
-                return Response(
-                    {"error": "Invalid subscription ID"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        Ticket.objects.create(
-            ticket_id = ticket_id,
+        subject = data.get('subject', '').strip()
+        description = data.get('description', '').strip()
+
+        if not subject or not description:
+            return Response({"detail": "Subject and description are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        ticket = Ticket.objects.create(
+            user=user,
             subject=subject,
-            status = ticket_status,
-            created_by=created_by,
-            message = message,
-            related_OrderId = subscription 
-        )    
-        return Response({"success":True, "message": "Trainer account created successfully"}, status=status.HTTP_201_CREATED)
-                              
+            ticketID='TCK-' + str(Ticket.objects.count() + 1),
+        )
 
+        Message.objects.create(
+            ticket=ticket,
+            sender=user,
+            text=description
+        )
 
-class GetAllTicketsView(APIView):
+        serializer = TicketSerializer(ticket)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+
+
+
+
+class AllTicketsListView(APIView):
     permission_classes = [IsAdmin]
-    serializer_class = AllTicketsSerializer
-    
-    def get(self,request):   
-         
-        tickets = Ticket.objects.select_related('related_OrderId', 'created_by').all();
-        serializer = self.serializer_class(tickets,many=True)
+
+    def get(self, request):
+
+        tickets = Ticket.objects.select_related('user').prefetch_related('messages').all()
+        serializer = TicketSerializer(tickets, many=True)
         return Response(serializer.data)
         
- 
-class UpdateTicketStatusView(APIView):      
-     
-    permission_classes = [IsAdmin]
-    serializer_class = UpdateTicketStatusSerializer
-    
+
+
+# Retrieve a single Ticket with messages
+class TicketDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        ticket = get_object_or_404(Ticket, pk=pk)
+        serializer = TicketSerializer(ticket)
+        return Response(serializer.data)
+
+
+# Add a message (chat) to a ticket
+class MessageCreateView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
-        status = request.data.get("status")
-        ticket_id = request.data.get("ticketId")
+        ticketID = request.data.get("ticketID")
+        text = request.data.get('text')
         
-        if not status and not ticket_id:
-            return Response({"error": "Ticket Update Status Failed"}, status=400)
+        if not ticketID or not text:
+            return Response({"detail": "TicketID and text are required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ticket = Ticket.objects.get(ticketID =ticketID)
+        except Ticket.DoesNotExist:
+            return Response({"detail": "Ticket not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        message = Message.objects.create(ticket=ticket,sender=request.user,text=text)
+        serializer = MessageSerializer(message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
 
-        ticket = Ticket.objects.filter(ticket_id=ticket_id).first()
 
-        if ticket:
-            serializer = UpdateTicketStatusSerializer(ticket, data=request.data, partial=True)
-        else:
-            serializer = UpdateTicketStatusSerializer(data=request.data)
+class UpdateTicketStatusView(APIView):
+    permission_classes = [AllowAny]
 
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=200)
-        return Response(serializer.errors, status=400) 
+    def post(self, request):
+        ticketID = request.data.get("ticketID")
+        ticket_status = request.data.get('status')
+        
+        if not ticketID or not status:
+            return Response({"detail": "TicketID and status are required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ticket = Ticket.objects.get(ticketID =ticketID)
+        except Ticket.DoesNotExist:
+            return Response({"detail": "Ticket not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        ticket.status = ticket_status
+        ticket.save()
+        
+        return Response({"message":"status updated successfully"} , status=status.HTTP_200_OK)    
         
         
         
-                  
+        
+        
+                    
        
        
         

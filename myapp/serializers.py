@@ -45,10 +45,10 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
         fields="__all__"  
 
 
-class TicketResponseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TicketResponse
-        fields = ['by', 'text', 'created_at']
+# class TicketResponseSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = TicketResponse
+#         fields = ['by', 'text', 'created_at']
         
            
 class UserSessionHistorySerializer(serializers.ModelSerializer):
@@ -57,22 +57,51 @@ class UserSessionHistorySerializer(serializers.ModelSerializer):
         fields="__all__"  
         
 
+# class TicketSerializer(serializers.ModelSerializer):
+#     responses = TicketResponseSerializer(many=True, read_only=True)
+#     class Meta:
+#         model = Ticket
+#         fields = ['ticket_id', 'subject', 'message', 'related_OrderId',
+#                   'status', 'created_at', 'responses']
+
+
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender_name = serializers.CharField(source="sender.fullname", read_only=True)
+    sender_role = serializers.CharField(source="sender.role", read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ["id", "ticket", "sender", "sender_name",'sender_role', "text", "created_at"]
+        read_only_fields = ["id", "created_at", "sender_name",'sender_role']
+
+
 class TicketSerializer(serializers.ModelSerializer):
-    responses = TicketResponseSerializer(many=True, read_only=True)
+    user_name = serializers.CharField(source="user.fullname", read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
+    role = serializers.CharField(source="user.role", read_only=True)
+    mobile_number = serializers.CharField(source="user.mobile_number", read_only=True)
+
+
+    messages = MessageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Ticket
-        fields = ['ticket_id', 'subject', 'message', 'related_OrderId',
-                  'status', 'created_at', 'responses']
+        fields = ["id", "ticketID", "user", "user_name",'email','role','mobile_number',"category", "subject", "status", "created_at", "messages"]
+        read_only_fields = ["id","ticketID","created_at", "user_name", "messages"]        
+                
+
                         
 class UserProfileSerializer(serializers.ModelSerializer):
     cv_url = serializers.SerializerMethodField()
     profile_photo_url = serializers.SerializerMethodField()
-    tickets  = TicketSerializer(many=True, read_only=True)
     subscription = UserSubscriptionSerializer(read_only = True,many=True)
+    tickets = TicketSerializer(many=True, read_only=True)
     session_history = UserSessionHistorySerializer(many=True, read_only=True, source="sessions")
     class Meta:
         model = User
-        fields = ['fullname','email','cv','mobile_number','alt_mobile_number','profile_photo','profile_photo_url','cv_url','role','paid_customer','subscription','tickets','session_history']
+        fields = ['fullname','email','cv','mobile_number','alt_mobile_number','profile_photo','profile_photo_url','cv_url','role','paid_customer','subscription','session_history','tickets']
 
     def get_profile_photo_url(self, obj):
         if obj.profile_photo:
@@ -209,23 +238,24 @@ class UserSerializer(serializers.ModelSerializer):
         
         model =  User
         fields="__all__"
-                
+        
 
-class AllTicketsSerializer(serializers.ModelSerializer):
-    responses = TicketResponseSerializer(many=True, read_only=True)
-    related_OrderId = UserSubscriptionSerializer(read_only = True)
-    created_by = UserSerializer(read_only =True)
-    class Meta:
-        model = Ticket
-        fields = ['ticket_id', 'subject', 'message', 'related_OrderId',
-                  'status', 'created_at', 'responses','created_by']
+
+# class AllTicketsSerializer(serializers.ModelSerializer):
+#     responses = TicketResponseSerializer(many=True, read_only=True)
+#     related_OrderId = UserSubscriptionSerializer(read_only = True)
+#     created_by = UserSerializer(read_only =True)
+#     class Meta:
+#         model = Ticket
+#         fields = ['ticket_id', 'subject', 'message', 'related_OrderId',
+#                   'status', 'created_at', 'responses','created_by']
         
         
-class UpdateTicketStatusSerializer(serializers.ModelSerializer):
+# class UpdateTicketStatusSerializer(serializers.ModelSerializer):
     
-    class Meta:
-        model=Ticket
-        fields=['ticket_id','status']         
+#     class Meta:
+#         model=Ticket
+#         fields=['ticket_id','status']         
 
 
 # from collections import defaultdict

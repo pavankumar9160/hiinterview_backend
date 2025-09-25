@@ -187,33 +187,69 @@ class SessionHistory(models.Model):
     completed_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
     
     
+# class Ticket(models.Model):
+#     TICKET_STATUS_CHOICES = [
+#         ('Open', 'Open'),
+#         ('Closed', 'Closed'),
+#         ('Pending', 'Pending'),
+#         ('Resolved', 'Resolved'),
+#     ]
+
+#     ticket_id = models.CharField(max_length=20, unique=True)
+#     subject = models.CharField(max_length=255)
+#     message = models.TextField()
+#     related_OrderId = models.ForeignKey( UserSubscription,on_delete=models.SET_NULL,null=True,blank=True,related_name="tickets")
+#     status = models.CharField(max_length=20, choices=TICKET_STATUS_CHOICES, default='Open')
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tickets')
+
+#     def __str__(self):
+#         return f"{self.ticket_id} - {self.subject}"
+    
+
+
+# class TicketResponse(models.Model):
+    
+#     ticket = models.ForeignKey('Ticket',on_delete=models.CASCADE,related_name='responses')
+#     by = models.CharField(max_length=255) 
+#     text = models.TextField()
+#     created_at = models.DateTimeField(auto_now_add=True)   
+
+
+
+
+
 class Ticket(models.Model):
     TICKET_STATUS_CHOICES = [
-        ('Open', 'Open'),
-        ('Closed', 'Closed'),
-        ('Pending', 'Pending'),
-        ('Resolved', 'Resolved'),
+        ('New', 'New'),
+         ('Open', 'Open'),
+         ('Awaiting', 'Awaiting'),
+         ('Resolved', 'Resolved'),
     ]
 
-    ticket_id = models.CharField(max_length=20, unique=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tickets")
+    category = models.CharField(max_length=100,default ="candidate")
     subject = models.CharField(max_length=255)
-    message = models.TextField()
-    related_OrderId = models.ForeignKey( UserSubscription,on_delete=models.SET_NULL,null=True,blank=True,related_name="tickets")
-    status = models.CharField(max_length=20, choices=TICKET_STATUS_CHOICES, default='Open')
+    ticketID = models.CharField(max_length=255,default= "")
+    status = models.CharField(max_length=20, choices=TICKET_STATUS_CHOICES, default="Open")
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tickets')
 
     def __str__(self):
-        return f"{self.ticket_id} - {self.subject}"
-    
+        return f"Ticket #{self.ticketID} - {self.subject}"
 
 
-class TicketResponse(models.Model):
-    
-    ticket = models.ForeignKey('Ticket',on_delete=models.CASCADE,related_name='responses')
-    by = models.CharField(max_length=255) 
+class Message(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
     text = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Message by {self.sender.username} on Ticket {self.ticket.id}"
+ 
 
 
     
