@@ -704,9 +704,15 @@ class UpdateTicketStatusView(APIView):
         ticket.save()
         
         return Response({"message":"status updated successfully"} , status=status.HTTP_200_OK)    
-        
-        
-        
+
+
+
+class ServiceListView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request):
+        services = Service.objects.all()
+        serializer = ServiceSerializer(services, many=True)
+        return Response(serializer.data)        
         
         
                     

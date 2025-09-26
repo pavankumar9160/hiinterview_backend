@@ -35,6 +35,8 @@ urlpatterns = [
     path("tickets/<int:pk>/", TicketDetailView.as_view(), name="ticket-detail"),
     path("messages/create/", MessageCreateView.as_view(), name="message-create"),
     path("tickets/update-status/", UpdateTicketStatusView.as_view(), name="update-status"),
+        path('api/services/', ServiceListView.as_view(), name='service-list'),
+
 
 
 

@@ -241,6 +241,26 @@ class UserSerializer(serializers.ModelSerializer):
         
 
 
+class ServiceSerializer(serializers.ModelSerializer):
+    originalPrice = serializers.DecimalField(source="original_price", max_digits=10, decimal_places=2, required=False, allow_null=True)
+
+    features = serializers.SerializerMethodField()
+    applicableDomains = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Service
+        fields = ["id","type","name","price","originalPrice","description","features","applicableDomains"]
+
+    def get_features(self, obj):
+        if obj.features:
+            return [f.strip() for f in obj.features.split(",") if f.strip()]
+        return []
+
+    def get_applicableDomains(self, obj):
+        if obj.applicable_domains:
+            return [d.strip() for d in obj.applicable_domains.split(",") if d.strip()]
+        return []
+    
 # class AllTicketsSerializer(serializers.ModelSerializer):
 #     responses = TicketResponseSerializer(many=True, read_only=True)
 #     related_OrderId = UserSubscriptionSerializer(read_only = True)

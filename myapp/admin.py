@@ -54,4 +54,24 @@ class WebsiteStatusAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'type', 'price', 'original_price')
+    search_fields = ('id', 'name')
+    list_filter = ("type", "name")
+
+
+
+@admin.register(Ticket)
+class TicketAdmin(admin.ModelAdmin):
+    list_display = ("user","ticketID","category","subject","status","created_at")
+    search_fields = ("ticketID",)
+
    
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ("ticket", "sender", "text", "created_at")
+
+     
