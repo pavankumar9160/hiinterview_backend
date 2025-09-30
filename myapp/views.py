@@ -714,7 +714,24 @@ class ServiceListView(APIView):
         serializer = ServiceSerializer(services, many=True)
         return Response(serializer.data)        
         
-        
+
+from django.utils.timezone import now
+
+
+class CouponListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        today = now()
+        coupons = Coupon.objects.filter(
+            isActive=True,
+                isDeleted=False,
+                startAt__lte=today,
+                endAt__gte=today
+        )
+        serializer = CouponSerializer(coupons, many=True)
+        return Response(serializer.data)
+     
                     
        
        

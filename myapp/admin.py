@@ -74,4 +74,59 @@ class TicketAdmin(admin.ModelAdmin):
 class MessageAdmin(admin.ModelAdmin):
     list_display = ("ticket", "sender", "text", "created_at")
 
+
+
+from django.contrib import admin
+from .models import Coupon
+from django import forms
+
+
+class CouponAdminForm(forms.ModelForm):
+    PAGE_CHOICES = [
+        ('home', 'home'),
+        ('slider', 'slider'),
+        ('cart', 'cart'),
+        ('checkout', 'checkout'),
+        ('profile','profile'),
+    ]
+
+    displayPages = forms.MultipleChoiceField(
+        choices=PAGE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Display Pages"
+    )
+
+    class Meta:
+        model = Coupon
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.displayPages:
+            self.initial['displayPages'] = self.instance.displayPages.split(',')
+
+    def clean_displayPages(self):
+        return ','.join(self.cleaned_data.get('displayPages', []))
+
+class CouponAdmin(admin.ModelAdmin):
+    form = CouponAdminForm
+    list_display = ("couponCode", "title", "discountType", "discountValue", "isActive", "isFeatured", "priority", "startAt", "endAt")
+    list_filter = ("isActive", "isFeatured", "discountType", "displayPages")
+    search_fields = ("couponCode", "title", "description")
+    ordering = ("priority", "-createdAt")
+
+    filter_horizontal = ()
+    fieldsets = (
+        (None, {
+            "fields": (
+                "couponCode", "title", "description",
+                "discountType", "discountValue", "minOrderValue", "maxDiscountValue",
+                "startAt", "endAt", "isActive", "priority",
+                "usageLimit", "usedCount", "isFeatured", "displayPages", "productId",
+                "createdBy", "updatedBy", "isDeleted"
+            )
+        }),
+    )
+admin.site.register(Coupon, CouponAdmin)    
      

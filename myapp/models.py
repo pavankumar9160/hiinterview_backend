@@ -268,6 +268,59 @@ class Service(models.Model):
     def __str__(self):
         return f"{self.id} - {self.name}"
     
+
+
+from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class Coupon(models.Model):
+    DISCOUNT_TYPE_CHOICES = [
+        ("fixed", "fixed"),
+        ("percentage", "percentage"),
+    ]
+
+    couponCode = models.CharField(max_length=50, unique=True)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+
+    discountType = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES)
+    discountValue = models.DecimalField(max_digits=10, decimal_places=2)
+
+    minOrderValue = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    maxDiscountValue = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+
+    startAt = models.DateTimeField()
+    endAt = models.DateTimeField()
+
+    isActive = models.BooleanField(default=True)
+    priority = models.IntegerField(default=0)
+
+    usageLimit = models.IntegerField(blank=True, null=True)
+    usedCount = models.IntegerField(default=0)
+
+    isFeatured = models.BooleanField(default=False)
+
+    displayPages = models.CharField(max_length=255,blank=True, null=True,help_text="Comma separated list of pages")
+
+    productId = models.IntegerField(blank=True, null=True)
+
+    createdBy = models.ForeignKey(User, related_name="coupon_created", on_delete=models.SET_NULL, null=True, blank=True)
+    updatedBy = models.ForeignKey(User, related_name="coupon_updated", on_delete=models.SET_NULL, null=True, blank=True)
+
+    createdAt = models.DateTimeField(auto_now_add=True)
+    updatedAt = models.DateTimeField(auto_now=True)
+
+    isDeleted = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.couponCode} - {self.title}"
+    
+    def get_display_pages_list(self):
+        return self.displayPages.split(',') if self.displayPages else []
+    
+    
     
     
 
