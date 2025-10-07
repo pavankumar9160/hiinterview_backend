@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+
+
+
+
+# Django
+*.log
+*.pot
+*.pyc
+.env
+venv/
+.env/
+.idea/
+.vscode/
+
+# Migrations
+**/migrations/*
+!**/migrations/__init__.py
+
+
