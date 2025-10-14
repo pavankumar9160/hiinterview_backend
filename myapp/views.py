@@ -14,7 +14,6 @@ import pyotp
 from django.core.mail import send_mail
 
 from .permissions import IsAdmin, IsMentor, IsCandidate, IsPartner
-from .utils.google_sheets import add_user_to_sheet  # <-- import
 
 
 
@@ -52,17 +51,6 @@ class RegisterView(APIView):
                 user.cv = request.FILES.get('cv')
                 user.save()
             
-            sheet_data = {
-                "email": user.email,
-                "password": password,
-                'hash_password': user.password,
-                "fullname": user.fullname,
-                "mobile": user.mobile_number,
-                "alt_mobile": user.alt_mobile_number if alt_mobile else "",
-                "cv": user.cv.name if cv else ""
-            }
-            add_user_to_sheet(sheet_data)    
-           
             return Response({"success":True, "message": "User created successfully"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -534,6 +522,7 @@ class UpdateCandidateAssignment(APIView):
             serializer = UpdateCandidateAssignmentSerializer(assignment, data=request.data, partial=True)
         else:
             serializer = UpdateCandidateAssignmentSerializer(data=request.data)
+            
 
         if serializer.is_valid():
             serializer.save()
@@ -735,11 +724,17 @@ class TicketCreateView(APIView):
         if not subject or not description:
             return Response({"detail": "Subject and description are required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        last_ticket = Ticket.objects.order_by('id').last()
+        if last_ticket:
+            last_id = int(last_ticket.ticketID.split('-')[1])
+            new_id = last_id + 1
+        else:
+            new_id = 1
+
         ticket = Ticket.objects.create(
             user=user,
             subject=subject,
-            ticketID='TCK-' + str(Ticket.objects.count() + 1),
-        )
+            ticketID=f"TCK-{new_id:05d}")
 
         Message.objects.create(
             ticket=ticket,
@@ -775,22 +770,25 @@ class TicketDetailView(APIView):
         return Response(serializer.data)
 
 
-# Add a message (chat) to a ticket
 class MessageCreateView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         ticketID = request.data.get("ticketID")
         text = request.data.get('text')
+        attachment = request.FILES.get('attachment')
+        is_read_candidate = str(request.data.get('is_read_candidate', 'false')).lower() == 'true'
+        is_read_admin = str(request.data.get('is_read_admin', 'false').lower()) == 'true'
         
-        if not ticketID or not text:
-            return Response({"detail": "TicketID and text are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not ticketID:
+            return Response({"detail": "TicketID is required."}, status=status.HTTP_400_BAD_REQUEST)
         try:
             ticket = Ticket.objects.get(ticketID =ticketID)
         except Ticket.DoesNotExist:
             return Response({"detail": "Ticket not found."}, status=status.HTTP_404_NOT_FOUND)
         
-        message = Message.objects.create(ticket=ticket,sender=request.user,text=text)
+        message = Message.objects.create(ticket=ticket,sender=request.user,text=text if text else "",attachment = attachment if attachment else None,
+                                        is_read_candidate=is_read_candidate,is_read_admin=is_read_admin)
         serializer = MessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
@@ -841,6 +839,45 @@ class CouponListView(APIView):
         )
         serializer = CouponSerializer(coupons, many=True)
         return Response(serializer.data)
+    
+
+
+class UpdateCandidateMessageCount(APIView):
+    
+    permission_classes = [IsCandidate]
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+
+        TicketId = data.get('TicketId', '').strip()
+      
+        if not TicketId :
+            return Response({"detail": "TicketId is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        ticket = Ticket.objects.get(ticketID=TicketId)
+        messages = Message.objects.filter(ticket=ticket).update(is_read_candidate = True)
+        return Response({"success":"message read count updated successfully"}, status=status.HTTP_201_CREATED) 
+ 
+   
+
+class UpdateAdminMessageCount(APIView):
+    
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+
+        TicketId = data.get('TicketId', '').strip()
+      
+        if not TicketId :
+            return Response({"detail": "TicketId is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        ticket = Ticket.objects.get(ticketID=TicketId)
+        messages = Message.objects.filter(ticket=ticket).update(is_read_admin = True)
+        return Response({"success":"message read count updated successfully"}, status=status.HTTP_201_CREATED)             
+            
      
                     
        

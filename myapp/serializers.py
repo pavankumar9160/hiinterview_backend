@@ -70,11 +70,17 @@ class UserSessionHistorySerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(source="sender.fullname", read_only=True)
     sender_role = serializers.CharField(source="sender.role", read_only=True)
-
+    attachment = serializers.SerializerMethodField()
     class Meta:
         model = Message
-        fields = ["id", "ticket", "sender", "sender_name",'sender_role', "text", "created_at"]
+        fields = ["id", "ticket", "sender", "sender_name",'sender_role', "text","attachment",'is_read_admin','is_read_candidate',"created_at"]
         read_only_fields = ["id", "created_at", "sender_name",'sender_role']
+        
+    def get_attachment(self, obj):
+        if obj.attachment:
+            return obj.attachment.url
+        return None
+    
 
 
 class TicketSerializer(serializers.ModelSerializer):
@@ -212,10 +218,11 @@ class PartnerLoginSerializer(serializers.Serializer):
      
 
 
-class TrainerProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = "__all__"
+
+        
+        
+        
+        
 
 class PartnerProfileSerializer(serializers.ModelSerializer):
     pan_url = serializers.SerializerMethodField()
@@ -277,8 +284,36 @@ class GetCandidateAssignmentSerializer(serializers.ModelSerializer):
 
     def get_buddy_id(self, obj):
         assignment = obj.assignments.last()
-        return assignment.buddy.id if assignment and assignment.buddy else None         
+        return assignment.buddy.id if assignment and assignment.buddy else None  
     
+ 
+class CandidateSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model=User 
+        fields="__all__"   
+        
+        
+class CandidateAssignmentSerializer(serializers.ModelSerializer):
+    candidate = CandidateSerializer(read_only = True)
+    class Meta :
+        model = CandidateAssignment
+        fields =["id","candidate",'assigned_at']
+        
+    
+class TrainerProfileSerializer(serializers.ModelSerializer):
+    
+    assigned_candidates = CandidateAssignmentSerializer(
+        many=True, read_only=True, source='trainer_assignments'
+    )
+    class Meta:
+        model = User
+        fields = ['id','first_name','last_name','fullname','email'
+                  ,'domain','role','is_active','assigned_candidates']       
+    
+    
+        
+        
       
 class UpdateCandidateAssignmentSerializer(serializers.ModelSerializer):
     
@@ -327,8 +362,6 @@ class CouponSerializer(serializers.ModelSerializer):
         if obj.displayPages:
             return [d.strip() for d in obj.displayPages.split(",") if d.strip()]
         return []    
-
-        
     
-        
-   
+
+

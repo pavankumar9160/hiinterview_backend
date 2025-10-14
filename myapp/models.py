@@ -259,14 +259,18 @@ class Ticket(models.Model):
 class Message(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
-    text = models.TextField()
+    text = models.TextField(null=True,blank=True)
+    attachment = models.FileField(upload_to='attachments/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_read_admin = models.BooleanField(default=False)
+    is_read_candidate = models.BooleanField(default=False)
+
 
     class Meta:
         ordering = ["created_at"]
 
     def __str__(self):
-        return f"Message by {self.sender.username} on Ticket {self.ticket.id}"
+        return f"Message by {self.sender} on Ticket {self.ticket.id}"
  
 
 class Service(models.Model):
@@ -340,7 +344,10 @@ class Coupon(models.Model):
     
     
     
+
     
+    
+
 
     
     

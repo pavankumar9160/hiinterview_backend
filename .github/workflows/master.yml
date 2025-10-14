@@ -17,4 +17,7 @@ jobs:
         server: hiinterviews.com  
         username: ${{ secrets.ftp_username }}
         password: ${{ secrets.ftp_password }}
-        server-dir : hiinterviews.com/hiinterview_backend/
+        server-dir : sandbox.hiinterviews.com/hiinterview_backend/
+        exclude: |
+          db.sqlite3
+          .gitignore

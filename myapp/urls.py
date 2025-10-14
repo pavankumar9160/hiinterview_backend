@@ -41,6 +41,10 @@ urlpatterns = [
     path('api/partner/signup/', PartnerRegisterView.as_view(), name='partner-register'),
     path('api/partnerprofile/',PartnerProfileView.as_view(), name="partnerprofile"),
     path('api/update/partner-profile/',EditPartnerProfileView.as_view(),name ="update-partnerprofile"),
+    path('api/admin/logout/', LogoutView.as_view(), name='admin-logout'),
+    path('api/updateMessageReadCount/',UpdateCandidateMessageCount.as_view(),name = 'candidate-message-read-count'),
+    path('api/updateAdminMessageReadCount/',UpdateAdminMessageCount.as_view(),name = 'admin-message-read-count')
+
 
 
 
