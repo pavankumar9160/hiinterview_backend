@@ -43,7 +43,24 @@ urlpatterns = [
     path('api/update/partner-profile/',EditPartnerProfileView.as_view(),name ="update-partnerprofile"),
     path('api/admin/logout/', LogoutView.as_view(), name='admin-logout'),
     path('api/updateMessageReadCount/',UpdateCandidateMessageCount.as_view(),name = 'candidate-message-read-count'),
-    path('api/updateAdminMessageReadCount/',UpdateAdminMessageCount.as_view(),name = 'admin-message-read-count')
+    path('api/updateAdminMessageReadCount/',UpdateAdminMessageCount.as_view(),name = 'admin-message-read-count'),
+    path('api/GetAssignedTrainer/',GetAssignedTrainer.as_view(),name = 'admin-message-read-count'),
+    path('api/chat/get-or-create/', GetOrCreateChatView.as_view(), name='get_or_create_chat'),
+    path('api/SendMessage/', SendMessageView.as_view(), name='send-message'),
+    path('api/TrainerSendMessage/', TrainerSendMessage.as_view(), name='trainer-send-message'),
+    path('api/MarkAllTrainerRead/', MarkAllTrainerRead.as_view(), name='trainer-markall-read'),
+    path('api/TrainerMarkchatRead/', TrainerMarkChatReadView.as_view(), name='trainer-markall-read'),
+    path('api/mark-messages-read/', CandidateMarkChatReadView.as_view(), name='candidate-mark-message-read'),
+
+
+    
+
+
+    
+    
+
+
+
 
 
 

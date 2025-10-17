@@ -454,17 +454,44 @@ class EditPartnerProfileView(APIView):
                   
             
             
+from django.db.models import Q
 
 class TrainerProfileView(APIView):
     permission_classes = [IsMentor]   
     serializer_class = TrainerProfileSerializer
     
-    def get(self,request):
-        user = request.user
-        if user is None:
-            return Response({"error": "user not found"},status=status.HTTP_400_BAD_REQUEST)
-        serializer= self.serializer_class(user)
-        return Response(serializer.data)     
+    def get(self, request):
+        trainer = request.user
+        serializer = TrainerProfileSerializer(trainer)
+
+        # fetch assigned candidates (students)
+        assigned_candidates = trainer.trainer_assignments.all()
+        candidate_chats = []
+
+        for assignment in assigned_candidates:
+            candidate = assignment.candidate
+            chat_request = ChatRequest.objects.filter(
+                Q(user1=trainer, user2=candidate) |
+                Q(user1=candidate, user2=trainer)
+            ).first()
+
+            candidate_data = {
+                "candidate": {
+                    "id": candidate.id,
+                    "fullname": candidate.fullname,
+                    "email": candidate.email,
+                    "is_active": candidate.is_active,
+                    "joined_date":candidate.joined_date,
+                },
+                "chat": ChatRequestSerializer(chat_request).data if chat_request else None
+            }
+            candidate_chats.append(candidate_data)
+
+        data = {
+            "trainer_profile": serializer.data,
+            "assigned_candidates_with_chat": candidate_chats
+        }
+        return Response(data)    
     
     
 
@@ -855,7 +882,7 @@ class UpdateCandidateMessageCount(APIView):
         if not TicketId :
             return Response({"detail": "TicketId is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        ticket = Ticket.objects.get(ticketID=TicketId)
+        ticket = Ticket.objects.get(ticketID=TicketId,is_read_candidate=False)
         messages = Message.objects.filter(ticket=ticket).update(is_read_candidate = True)
         return Response({"success":"message read count updated successfully"}, status=status.HTTP_201_CREATED) 
  
@@ -875,13 +902,192 @@ class UpdateAdminMessageCount(APIView):
             return Response({"detail": "TicketId is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         ticket = Ticket.objects.get(ticketID=TicketId)
-        messages = Message.objects.filter(ticket=ticket).update(is_read_admin = True)
+        updated_count = Message.objects.filter(ticket=ticket, is_read_admin=False).update(is_read_admin=True)
         return Response({"success":"message read count updated successfully"}, status=status.HTTP_201_CREATED)             
             
      
-                    
+
+class GetAssignedTrainer(APIView):
+    
+    permission_classes = [IsCandidate]
+    serializer_classes =  GetAssignedTrainerSerializer
+    
+    def get(self,request):
+        user= request.user
+        
+        trainer=CandidateAssignment.objects.get(candidate=user) 
+        if not trainer :
+            return Response({"detail": "trainer is not assigned."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = GetAssignedTrainerSerializer(trainer)
+        return Response(serializer.data)
+        
+        
+
+class GetOrCreateChatView(APIView):
+    permission_classes=[AllowAny]
+    def post(self, request):
+        user1_id = request.data.get('user1_id')
+        user2_id = request.data.get('user2_id')
+
+        if not user1_id or not user2_id:
+            return Response({"error": "Both user1_id and user2_id are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if int(user1_id) == int(user2_id):
+            return Response({"error": "Cannot create chat with the same user"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ensure consistent ordering to match unique_together
+        u1, u2 = sorted([int(user1_id), int(user2_id)])
+
+        # Check if chat already exists
+        chat_request = ChatRequest.objects.filter(user1_id=u1, user2_id=u2).first()
+
+        if not chat_request:
+            chat_request = ChatRequest.objects.create(user1_id=u1, user2_id=u2)
+
+        serializer = ChatRequestSerializer(chat_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)       
+
+
+
+class SendMessageView(APIView):
+    permission_classes = [IsCandidate]
+
+    def post(self, request):
+        sender = request.user
+        chat_request_id = request.data.get('chatRequestId')
+        text = request.data.get('text')
+
+        if not chat_request_id or text is None:
+            return Response({'error': 'chatRequestId and text are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            chat_request = ChatRequest.objects.get(id=chat_request_id)
+            
+            if not chat_request.is_active:
+                return Response({"error": "This chat is disabled."}, status=status.HTTP_403_FORBIDDEN)
+            
+        except ChatRequest.DoesNotExist:
+            return Response({'error': 'ChatRequest not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        message = ChatMessage.objects.create(
+            chatRequest=chat_request,
+            sender=sender,
+            text=text
+        )
+
+        serializer = ChatMessageSerializer(message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)     
+    
+
+
+
+class TrainerSendMessage(APIView):
+    permission_classes = [IsMentor]
+
+    def post(self, request):
+        trainer_id = request.data.get('senderId')
+        candidate_id = request.data.get('candidateId')
+        chat_request_id = request.data.get('chatRequestId')
+        text = request.data.get('text')
+
+        if not trainer_id or not candidate_id or not text:
+            return Response({"error": "trainer_id, candidate_id, and text are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            trainer = User.objects.get(id=trainer_id)
+            candidate = User.objects.get(id=candidate_id)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid user IDs"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if chat_request_id:
+            chat_request = ChatRequest.objects.filter(id=chat_request_id).first()
+            if not chat_request:
+                return Response({"error": "Invalid chatRequestId"}, status=status.HTTP_400_BAD_REQUEST)
+            if not chat_request.is_active:
+                return Response({"error": "This chat is disabled."}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            u1, u2 = sorted([candidate.id, trainer.id])
+            chat_request, created = ChatRequest.objects.get_or_create(user1_id=u1, user2_id=u2)
+
+        message = ChatMessage.objects.create(
+            chatRequest=chat_request,
+            sender=trainer,
+            text=text
+        )
+
+        serializer = ChatRequestSerializer(chat_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)   
+
+
+          
+
+class MarkAllTrainerRead(APIView):
+    def post(self, request):
+        trainer_id = request.data.get('trainerId')
+
+        if not trainer_id:
+            return Response({"error": "trainerId is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        chat_requests = ChatRequest.objects.filter(Q(user1_id=trainer_id) | Q(user2_id=trainer_id))
+
+        unread_messages = ChatMessage.objects.filter(
+            chatRequest__in=chat_requests,
+            is_read_trainer=False
+        )
+
+        updated_count = unread_messages.update(is_read_trainer=True)
+
+        return Response({
+            "message": f"{updated_count} messages marked as read for trainer {trainer_id}"
+        }, status=status.HTTP_200_OK)                           
        
-       
+      
+class TrainerMarkChatReadView(APIView) :
+    
+    permission_classes = [IsMentor]  
+    
+    def post(self, request):
+        chatRequestId = request.data.get('chatRequestId')
+
+        if not chatRequestId:
+            return Response({"error": "chatRequestId is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        
+
+        unread_messages = ChatMessage.objects.filter(
+            chatRequest=chatRequestId,
+            is_read_trainer=False
+        )
+
+        updated_count = unread_messages.update(is_read_trainer=True)
+
+        return Response({
+            "message": f"{updated_count} messages marked as read for chatRequest {chatRequestId}"
+        }, status=status.HTTP_200_OK)                           
+      
+class CandidateMarkChatReadView(APIView) :
+    
+    permission_classes = [IsCandidate]  
+    
+    def post(self, request):
+        chatRequestId = request.data.get('chatRequestId')
+
+        if not chatRequestId:
+            return Response({"error": "chatRequestId is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        
+
+        unread_messages = ChatMessage.objects.filter(
+            chatRequest=chatRequestId,
+            is_read_candidate=False
+        )
+
+        updated_count = unread_messages.update(is_read_candidate=True)
+
+        return Response({
+            "message": f"{updated_count} messages marked as read for chatRequest {chatRequestId}"
+        }, status=status.HTTP_200_OK)        
+     
         
         
 

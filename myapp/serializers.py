@@ -365,3 +365,32 @@ class CouponSerializer(serializers.ModelSerializer):
     
 
 
+class GetAssignedTrainerSerializer(serializers.Serializer):
+    
+    trainer = UserSerializer(read_only=True)
+    candidate = UserSerializer(read_only=True)
+    class Meta:
+        model = CandidateAssignment
+        fields =['id','trainer','candidate']
+        
+        
+
+
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+
+    class Meta:
+        model = ChatMessage
+        fields = ['id', 'sender', 'text', 'created_at','is_read_admin','is_read_candidate','is_read_trainer']
+
+class ChatRequestSerializer(serializers.ModelSerializer):
+    user1 = UserSerializer(read_only=True)
+    user2 = UserSerializer(read_only=True)
+    chat_messages = ChatMessageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ChatRequest
+        fields = ['id', 'user1', 'user2', 'chat_messages', 'created_at']
+    

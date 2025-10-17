@@ -341,6 +341,40 @@ class Coupon(models.Model):
     
     def get_display_pages_list(self):
         return self.displayPages.split(',') if self.displayPages else []
+ 
+
+class ChatRequest(models.Model):
+    
+    user1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_user1')
+    user2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_user2')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Chat between {self.user1.fullname or self.user1.first_name} and {self.user2.fullname or self.user2.first_name}"
+
+    class Meta:
+        unique_together = ('user1', 'user2')  # Prevent duplicate chat rooms     
+    
+
+class ChatMessage(models.Model):
+    chatRequest = models.ForeignKey(ChatRequest, on_delete=models.CASCADE, related_name="chat_messages")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_sent_messages")
+    text = models.TextField(null=True,blank=True)
+    is_read_admin = models.BooleanField(default=False)
+    is_read_candidate = models.BooleanField(default=False)
+    is_read_trainer = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+   
+   
+    class Meta:
+        ordering = ["created_at"]
+
+    
+ 
+
+
+        
     
     
     

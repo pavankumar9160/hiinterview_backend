@@ -129,4 +129,53 @@ class CouponAdmin(admin.ModelAdmin):
         }),
     )
 admin.site.register(Coupon, CouponAdmin)    
+
+from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
+
+# Custom filter for user1
+class User1NameFilter(admin.SimpleListFilter):
+    title = _('User Name')
+    parameter_name = 'user1_name'
+
+    def lookups(self, request, model_admin):
+        users = set(model_admin.model.objects.values_list('user1__fullname', 'user1__first_name'))
+        lookup_list = []
+        for fullname, first_name in users:
+            name = fullname or first_name
+            if name:
+                lookup_list.append((name, name))
+        return sorted(lookup_list)
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(
+                user1__fullname=self.value()
+            ) | queryset.filter(
+                user1__first_name=self.value()
+            )
+        return queryset
+
+
+@admin.register(ChatRequest)
+class ChatRequestAdmin(admin.ModelAdmin):
+    list_display = ("user1", "user2", "created_at")
+    list_filter = ("is_active", User1NameFilter)
+    
+    # Search by either fullname or first_name
+    search_fields = (
+        "user1__fullname",
+        "user1__first_name",
+        "user2__fullname",
+        "user2__first_name",
+        "user1__last_name",
+        "user2__last_name",
+    )
+
+
+     
+    
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ("chatRequest", "sender", "text", "created_at")
      
