@@ -7,6 +7,8 @@ from rest_framework.permissions import *
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.exceptions import ObjectDoesNotExist
+
 
 from .models import *
 
@@ -882,8 +884,8 @@ class UpdateCandidateMessageCount(APIView):
         if not TicketId :
             return Response({"detail": "TicketId is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        ticket = Ticket.objects.get(ticketID=TicketId,is_read_candidate=False)
-        messages = Message.objects.filter(ticket=ticket).update(is_read_candidate = True)
+        ticket = Ticket.objects.get(ticketID=TicketId)
+        messages = Message.objects.filter(ticket=ticket,is_read_candidate=False).update(is_read_candidate = True)
         return Response({"success":"message read count updated successfully"}, status=status.HTTP_201_CREATED) 
  
    
@@ -914,13 +916,14 @@ class GetAssignedTrainer(APIView):
     
     def get(self,request):
         user= request.user
-        
-        trainer=CandidateAssignment.objects.get(candidate=user) 
-        if not trainer :
-            return Response({"detail": "trainer is not assigned."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            trainer = CandidateAssignment.objects.get(candidate=user)
+        except ObjectDoesNotExist:
+            return Response({"detail": "Trainer is not assigned."}, status=status.HTTP_400_BAD_REQUEST)
         serializer = GetAssignedTrainerSerializer(trainer)
         return Response(serializer.data)
-        
+            
         
 
 class GetOrCreateChatView(APIView):
@@ -956,8 +959,9 @@ class SendMessageView(APIView):
         sender = request.user
         chat_request_id = request.data.get('chatRequestId')
         text = request.data.get('text')
+        attachment = request.FILES.get('attachment')
 
-        if not chat_request_id or text is None:
+        if chat_request_id is None:
             return Response({'error': 'chatRequestId and text are required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -972,7 +976,8 @@ class SendMessageView(APIView):
         message = ChatMessage.objects.create(
             chatRequest=chat_request,
             sender=sender,
-            text=text
+            text=text if text else "",
+            attachment = attachment if attachment else None
         )
 
         serializer = ChatMessageSerializer(message)
@@ -989,9 +994,10 @@ class TrainerSendMessage(APIView):
         candidate_id = request.data.get('candidateId')
         chat_request_id = request.data.get('chatRequestId')
         text = request.data.get('text')
+        attachment = request.FILES.get('attachment')
 
-        if not trainer_id or not candidate_id or not text:
-            return Response({"error": "trainer_id, candidate_id, and text are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not trainer_id or not candidate_id :
+            return Response({"error": "trainer_id, candidate_id are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             trainer = User.objects.get(id=trainer_id)
@@ -1012,15 +1018,15 @@ class TrainerSendMessage(APIView):
         message = ChatMessage.objects.create(
             chatRequest=chat_request,
             sender=trainer,
-            text=text
+            text=text if text else "",
+            attachment = attachment if attachment else None
         )
 
-        serializer = ChatRequestSerializer(chat_request)
+        serializer = ChatMessageSerializer(message)
         return Response(serializer.data, status=status.HTTP_200_OK)   
 
 
           
-
 class MarkAllTrainerRead(APIView):
     def post(self, request):
         trainer_id = request.data.get('trainerId')

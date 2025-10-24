@@ -308,8 +308,8 @@ class TrainerProfileSerializer(serializers.ModelSerializer):
     )
     class Meta:
         model = User
-        fields = ['id','first_name','last_name','fullname','email'
-                  ,'domain','role','is_active','assigned_candidates']       
+        fields = ['id','first_name','last_name','fullname','email','gender'
+                  ,'domain','role','experience','is_active','assigned_candidates']       
     
     
         
@@ -380,10 +380,16 @@ class GetAssignedTrainerSerializer(serializers.Serializer):
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
+    attachment = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
-        fields = ['id', 'sender', 'text', 'created_at','is_read_admin','is_read_candidate','is_read_trainer']
+        fields = ['id', 'sender', 'text','attachment','created_at','is_read_admin','is_read_candidate','is_read_trainer']
+    
+    def get_attachment(self, obj):
+        if obj.attachment:
+            return obj.attachment.url
+        return None    
 
 class ChatRequestSerializer(serializers.ModelSerializer):
     user1 = UserSerializer(read_only=True)

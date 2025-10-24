@@ -361,6 +361,7 @@ class ChatMessage(models.Model):
     chatRequest = models.ForeignKey(ChatRequest, on_delete=models.CASCADE, related_name="chat_messages")
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_sent_messages")
     text = models.TextField(null=True,blank=True)
+    attachment = models.FileField(upload_to='chatAttachments/', null=True, blank=True)
     is_read_admin = models.BooleanField(default=False)
     is_read_candidate = models.BooleanField(default=False)
     is_read_trainer = models.BooleanField(default=False)
